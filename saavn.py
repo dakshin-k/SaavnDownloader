@@ -34,11 +34,9 @@ if __name__=='__main__':
     driver.get('https://www.saavn.com')
     driver.find_element_by_id('login-btn').click()
     username=driver.find_element_by_id('login_username')
-    username.send_keys('dakshin_@live.com')
-    # username.send_keys(input('Enter your email ID: '))
+    username.send_keys(input('Enter your email ID: '))
     password=driver.find_element_by_id('login_password')
-    password.send_keys('saavn*909')
-    # password.send_keys(input("Enter your password: "))
+    password.send_keys(input("Enter your password: "))
     driver.find_element_by_id('static-login-btn').click()
     #wait until home page is loaded again
     WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, 'my-music')))
@@ -49,8 +47,7 @@ if __name__=='__main__':
     for playlist in list:
         print(str(i)+'. '+playlist.text)
         i+=1
-    # i=int(input('Enter the playlist number: '))
-    i=5
+    i=int(input('Enter the playlist number: '))
     assert i<=len(list) and i>0
     driver.get(list[i-1].get('href'))
     #start the music :p
