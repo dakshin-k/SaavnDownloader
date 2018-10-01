@@ -7,9 +7,29 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
+from browsermobproxy import Server
+import psutil
+import time
+import os
+import urllib.parse
+import json
+import requests
 
 if __name__=='__main__':
-    driver=webdriver.Chrome()
+    for proc in psutil.process_iter():
+        # check whether the process name matches
+        if proc.name() == "browsermob-proxy":
+            proc.kill()
+
+    server = Server(path=os.getcwd()+"/browsermob-proxy-2.1.4/bin/browsermob-proxy")
+    server.start()
+    time.sleep(1) #proxy server takes a while to start
+    proxy=server.create_proxy()
+
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--proxy-server={0}".format(proxy.proxy))
+    driver = webdriver.Chrome(executable_path="chromedriver", chrome_options=chrome_options)
+
     driver.get('https://www.saavn.com')
     driver.find_element_by_id('login-btn').click()
     username=driver.find_element_by_id('login_username')
@@ -30,5 +50,27 @@ if __name__=='__main__':
     assert i<=len(list) and i>0
     driver.get(list[i-1].get('href'))
     #start the music :p
+    i=1
+    time.sleep(2)
+    list_of_songs=driver.find_elements_by_xpath('//*[@id="main"]/div/section/ol/li')
+    no_of_songs=len(list_of_songs)
+    print('no. of songs = '+str(no_of_songs))
+    # soup=BeautifulSoup(list_of_songs[0].get_attribute('innerHTML'),'html.parser')
+    # print(soup.prettify())
+    # exit(5)
     driver.find_element_by_class_name('play').click()
-    # webdriver.Chrome().get('https://aa.cf.saavncdn.com/092/7778f356b2cc8a86545882cf96e8badc_64.mp3?Expires=1538309444&Signature=B2DVi96PDXuk6btPzF933Q0o2WWwTOYWRYfMQ5ojk-KOMQd1lEn-vUtkoBq1Xirr-E~RpzoJkd7HqwSd20PNqe0cgamEyDdLZMdjum~rSRQ~kd5IF1tgX8AkOECcV53jMQoQEn8TEUpZfdRh1NskrXJ06ztC-jhAy0Esz6HLGGt8TaeA5mG8LKV2BDELVzv41cf7hmdrT2k1gOjIi9LrwxlR2i93uNhbUH1yWhFd059QLEXptcBhNMuVlJB-yw5krdHFMr27Wt0xexOfNNjibXM7o310remNosQ1cz0nrhKx5K7Tpr77cJ6CBO2O0EOUDx3ZExgeErL-RuRvELYjRQ__&Key-Pair-Id=APKAJB334VX63D3WJ5ZQ')
+    for i in range(1,no_of_songs+1):
+        proxy.new_har('req', options={'captureHeaders': False, 'captureContent': False})
+        time.sleep(3) # wait for music to start
+        har_data = json.dumps(proxy.har['log']['entries'][:], indent=4)
+        for entry in proxy.har['log']['entries']:
+            if entry['response']['content'].get('mimeType','')=='audio/mpeg':
+                url=entry['request']['url']
+                song=requests.get(url,stream=True)
+                with open('song'+str(i)+'.mp3','wb') as file:
+                    file.write(song.content)
+        driver.find_element_by_id('fwd').click()
+    # with open('hardata.json','w') as file:
+    #     file.write(har_data)
+    driver.quit()
+    server.stop()
